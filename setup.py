@@ -19,16 +19,16 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.0',
+    version='1.0.0',
     description='Multistream select',
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/ngetahun/py-multistream-select',
+    url='https://github.com/dheatovwil/py-multistream-select',
 
     # Author details
-    author='Natnael Getahun',
-    author_email='connect@ngetahun.me',
+    author='Tiong Tay',
+    author_email='tgtay@outlook.com',
 
     # Choose your license
     license='MIT',
