@@ -10,7 +10,7 @@ class MultiselectClient(IMultiselectClient):
     Client for communicating with receiver's multiselect
     module in order to select a protocol id to communicate over
     """
-    
+
     def __init__(self):
         pass
 
@@ -88,8 +88,8 @@ class MultiselectClient(IMultiselectClient):
         # and return the first protocol selected
         for protocol in protocols:
             try:
-                selected_protocol = await self.try_select(communicator, protocol)
-                return selected_protocol
+                selected_ptc = await self.try_select(communicator, protocol)
+                return selected_ptc
             except MultiselectClientError:
                 pass
 
@@ -100,7 +100,8 @@ class MultiselectClient(IMultiselectClient):
     async def try_select(communicator, protocol):
         """
         Try to select the given protocol or raise exception if fails
-        :param communicator: communicator to use to communicate with counterparty
+        :param communicator: communicator to use to communicate with counterpa-
+        rty
         :param protocol: protocol to select
         :raise Exception: error in protocol selection
         :return: selected protocol
