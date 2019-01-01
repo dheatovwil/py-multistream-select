@@ -23,17 +23,19 @@ class StreamI:
         self.stream.flush()
         return r
 
+    def close(self):
+        self.stream.close()
+        self.stream = None
+
 
 async def perform_simple_test(expected_selected_protocol,
                               protocols_for_client, protocols_with_handlers):
-    addr = ('localhost', 10000)
+    host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    host_sock.bind(('0.0.0.0', 0))
 
     def host_coroute():
         def empty_handler():
             pass
-
-        host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        host_sock.bind(addr)
         host_sock.listen(1)
         hconn, _ = host_sock.accept()
         host_stream = StreamI(hconn, 'host')
@@ -42,21 +44,24 @@ async def perform_simple_test(expected_selected_protocol,
             host.add_handler(p, empty_handler)
         iloop = asyncio.new_event_loop()
         iloop.run_until_complete(host.negotiate(host_stream))
+        host_stream.close()
         host_sock.close()
 
     t = threading.Thread(target=host_coroute)
     t.start()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(addr)
+    sock.connect(('127.0.0.1', host_sock.getsockname()[1]))
     stream = StreamI(sock, 'client')
     client_ms = MultiselectClient()
     try:
         protocol = await client_ms.select_one_of(protocols_for_client, stream)
+        stream.close()
         sock.close()
     except MultiselectClientError:
         await stream.write('debug-sigkill'.encode())  # kill host
         t.join()
+        stream.close()
         sock.close()
         raise MultiselectClientError
     assert protocol == expected_selected_protocol
