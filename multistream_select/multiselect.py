@@ -47,7 +47,8 @@ class Multiselect(IMultiselectMuxer):
                 # TODO: handle ls command
                 pass
             elif command == "debug-sigkill":
-                """ Used in automated testing to stop while loop when error is raised (at client side)"""
+                """ Used in automated testing to stop while loop when error is
+                 raised (at client side)"""
                 return None, None
             else:
                 protocol = command
