@@ -2,8 +2,12 @@ language: python
 python:
   - "3.5"
   - "3.6"
+  - "3.7-dev"
 install:
-  - pip install -r requirements.txt
+  - pip install -r requirements/requirements.txt
+  # packages that wont be updated by pyup
+  - pip install -r requirements/noupdate.txt
+
 before_script:
   # run linter
   flake8 
