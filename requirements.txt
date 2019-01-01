@@ -15,7 +15,7 @@ py==1.7.0
 pycodestyle==2.4.0
 pyflakes==2.0.0
 pyint==1.1.0
-pylint==2.1.1
+pylint==2.2.2
 pytest==3.10.0
 pytest-cov==2.6.0
 six==1.11.0
