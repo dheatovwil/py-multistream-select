@@ -187,8 +187,8 @@ class UnknownResponseStream:
         return self.msgs.pop(0).encode()
 
     @staticmethod
-    async def write():
-        return
+    async def write(byte):
+        return len(byte)
 
 
 @pytest.mark.asyncio
