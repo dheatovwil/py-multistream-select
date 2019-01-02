@@ -9,5 +9,8 @@ requirements:
         update: insecure
     - requirements/noupdate.txt:
         update: False
+    - requirements/postbuild.txt:
+        update: False
+        pin: False
 
 label_prs: update

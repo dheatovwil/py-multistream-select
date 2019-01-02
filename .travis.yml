@@ -1,18 +1,21 @@
 language: python
+
+env:
+  - CODECOV_TOKEN="8c195e59-b68f-46f8-ac46-0c6b6100c336"
+
 python:
   - "3.6"
   - "3.7-dev"
+
 install:
   - pip install -r requirements/requirements.txt
   # packages that wont be updated by pyup
   - pip install -r requirements/noupdate.txt
-
-before_script:
-  # run linter
-  flake8 
+  - pip install -r requirements/postbuild.txt
 
 script:
-  py.test
+  - pylint --rcfile=.pylintrc multistream_select
+  - py.test --cov=multistream_select test/
 
 after_success:
-  py.test --cov=multistream_select test/
+  - codecov
