@@ -39,7 +39,7 @@ async def perform_simple_test(expected_selected_protocol,
         host_sock.listen(1)
         hconn, _ = host_sock.accept()
         host_stream = StreamI(hconn, 'host')
-        host = Multiselect()
+        host = Multiselect(debug=True)
         for p in protocols_with_handlers:
             host.add_handler(p, empty_handler)
         iloop = asyncio.new_event_loop()
