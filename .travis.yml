@@ -14,7 +14,7 @@ install:
   - pip install -r requirements/postbuild.txt
 
 script:
-  - pylint --rcfile=.pylintrc multistream_select
+  - pylint --rcfile=.pylintrc multistream_select test
   - py.test --cov=multistream_select test/
 
 after_success:

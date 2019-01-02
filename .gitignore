@@ -140,4 +140,7 @@ dmypy.json
 pyvenv.cfg
 pip-selfcheck.json
 
+
+### Customs ###
+*-devignore
 # End of https://www.gitignore.io/api/code,python
