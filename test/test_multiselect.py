@@ -51,6 +51,7 @@ async def perform_simple_test(expected_selected_protocol,
     t.start()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
     sock.connect(('127.0.0.1', host_sock.getsockname()[1]))
     stream = StreamI(sock, 'client')
     client_ms = MultiselectClient()
