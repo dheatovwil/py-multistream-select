@@ -180,7 +180,7 @@ async def test_client_unknown_response():
 
 
 @pytest.mark.asyncio
-async def test_host_commands_handling():
+async def test_host_ls():
 
     class StrStream:
         def __init__(self, istream):
@@ -192,8 +192,14 @@ async def test_host_commands_handling():
         async def read(self):
             return (await self.super.read()).decode()
 
+    protocols = ['/egg/1.0', '/plant/1.0', '/echo/1.0']
+
     host_stream, client_stream = create_network()
     host = Multiselect()
+
+    for protocol in protocols:
+        host.add_handler(protocol, None)
+
     stream = StrStream(client_stream)
     loop = asyncio.get_event_loop()
     task = loop.create_task(host.negotiate(host_stream))
@@ -201,6 +207,15 @@ async def test_host_commands_handling():
     await stream.write(MULTISELECT_PROTOCOL_ID)  # handshake
     assert await stream.read() == MULTISELECT_PROTOCOL_ID
     await stream.write("ls")  # send ls (expect nothing)
-    assert not task.done()
+
+    response = []
+
+    try:
+        while True:
+            response.append(await stream.read())
+    except TimeoutError:
+        pass
+
+    assert response == protocols
     with pytest.raises(TimeoutError):
         await task
