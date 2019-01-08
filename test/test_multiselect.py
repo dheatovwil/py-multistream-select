@@ -90,20 +90,16 @@ async def perform_simple_test(expected_selected_protocol, protocols_for_client,
         host_ms.add_handler(protocol, None)
     client_ms = MultiselectClient()
 
-    try:
-        if args['select-single']:
-            func = client_ms.select_protocol_or_fail
+    if args['select-single']:
+        func = client_ms.select_protocol_or_fail
 
-        else:
-            func = client_ms.select_one_of
+    else:
+        func = client_ms.select_one_of
 
-        result = await asyncio.gather(
-            func(protocols_for_client, client_stream),
-            host_ms.negotiate(host_stream)
-        )
-    except MultiselectClientError:
-        await host_stream.write('debug-sigkill'.encode())  # kill host
-        raise MultiselectClientError
+    result = await asyncio.gather(
+        func(protocols_for_client, client_stream),
+        host_ms.negotiate(host_stream)
+    )
     assert result[0] == expected_selected_protocol
 
 
@@ -161,7 +157,7 @@ async def test_multiple_protocol_fails():
 async def test_host_handshake_fail():
     stream = InvalidHandshakeStream()
     comm = MultiselectCommunicator(stream)
-    host = Multiselect(debug=True)
+    host = Multiselect()
     with pytest.raises(MultiselectError):
         await host.handshake(comm)
 
@@ -205,7 +201,6 @@ async def test_host_commands_handling():
     await stream.write(MULTISELECT_PROTOCOL_ID)  # handshake
     assert await stream.read() == MULTISELECT_PROTOCOL_ID
     await stream.write("ls")  # send ls (expect nothing)
-    await stream.write("debug-sigkill")  # expect alive
     assert not task.done()
     with pytest.raises(TimeoutError):
         await task
