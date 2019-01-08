@@ -1,5 +1,3 @@
-import socket
-import threading
 import asyncio
 import pytest
 from multistream_select.multiselect import Multiselect, MultiselectError
@@ -9,67 +7,71 @@ from multistream_select.multiselect_communicator import \
     MultiselectCommunicator
 
 
-# TODO: HOST: debug-sigkill without debug flag, ls,
-
-
-class StreamI:
-    """
-    Stream interface to enforce protocol for tcp connection
-    """
-
-    def __init__(self, sock, timeout=False):
-        self.sock = sock
-        self.stream = sock.makefile('rwb')
-        self.timeout = timeout
-        self.msgs = []
+class SimpleSockStream:
+    def __init__(self):
+        self.write = None
+        self.incoming = []
 
     async def read(self):
-        in_b = self.stream.read(1)
-        length = int.from_bytes(in_b, byteorder='big')
-        return self.stream.read(length)
+        attempt = 0
+        while not self.incoming:
+            if attempt == 5:
+                raise TimeoutError
+            await asyncio.sleep(0.2)
+            attempt += 1
+        return self.incoming.pop(0)
 
-    async def write(self, bytes_towrite):
-        self.stream.write(len(bytes_towrite).to_bytes(1, byteorder='big'))
-        result = self.stream.write(bytes_towrite)
-        assert len(bytes_towrite) == result
-        self.stream.flush()
-        return result
+    def connect(self, target):
+        # assert isinstance(target, SimpleSock)
+        self.write = target.writetome
 
-    def close(self):
-        self.stream.close()
-        self.stream = None
+    async def writetome(self, msg):
+        # To be called by connected
+        self.incoming.append(msg)
 
 
-def create_host_process(protocols=None, debug=True, streamtimeout=False):
+class InvalidHandshakeStream:
     """
-    Create a Multiselect host thread
-    :param protocols: list of protocols supported (empty handler)
-    :param debug: Multiselect debug mode (default: True)
-    :param streamtimeout: Host stream timeout (default: False)
-    :return: (threading.Thread) process
+    Valid User: Client, Host
+    Always return an invalid HANDSHAKE version, does not interface StreamI
     """
-    if protocols is None:
-        protocols = []
-    host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host_sock.bind(('0.0.0.0', 0))
 
-    def host_coroute():
-        def empty_handler():
-            pass
+    def __init__(self):
+        pass
 
-        host_sock.listen(1)
-        hconn, _ = host_sock.accept()
-        host_stream = StreamI(hconn, timeout=streamtimeout)
-        host = Multiselect(debug=debug)
-        for protocol in protocols:
-            host.add_handler(protocol, empty_handler)
-        iloop = asyncio.new_event_loop()
-        iloop.run_until_complete(host.negotiate(host_stream))
-        host_stream.close()
-        host_sock.close()
+    @staticmethod
+    async def read():
+        return (MULTISELECT_PROTOCOL_ID + '.1').encode()
 
-    thread = threading.Thread(target=host_coroute)
-    return thread, host_sock
+    @staticmethod
+    async def write(byte):
+        return len(byte)
+
+
+class UnknownResponseStream:
+    """
+    Valid User: Client
+    Pass handshake and send nonsense to client
+    """
+
+    def __init__(self):
+        self.msgs = [MULTISELECT_PROTOCOL_ID,
+                     'you dont know me']
+
+    async def read(self):
+        return self.msgs.pop(0).encode()
+
+    @staticmethod
+    async def write(byte):
+        return len(byte)
+
+
+def create_network():
+    h_s = SimpleSockStream()
+    c_s = SimpleSockStream()
+    h_s.connect(c_s)
+    c_s.connect(h_s)
+    return h_s, c_s
 
 
 async def perform_simple_test(expected_selected_protocol, protocols_for_client,
@@ -81,28 +83,28 @@ async def perform_simple_test(expected_selected_protocol, protocols_for_client,
     if args is None:
         args = default
 
-    thread, host_sock = create_host_process(protocols_with_handlers)
-    thread.start()
+    host_stream, client_stream = create_network()
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', host_sock.getsockname()[1]))
-    stream = StreamI(sock)
+    host_ms = Multiselect()
+    for protocol in protocols_with_handlers:
+        host_ms.add_handler(protocol, None)
     client_ms = MultiselectClient()
+
     try:
         if args['select-single']:
-            protocol = await client_ms.select_protocol_or_fail(
-                protocols_for_client, stream)
+            func = client_ms.select_protocol_or_fail
+
         else:
-            protocol = await client_ms.select_one_of(protocols_for_client, stream)
-        stream.close()
-        sock.close()
+            func = client_ms.select_one_of
+
+        result = await asyncio.gather(
+            func(protocols_for_client, client_stream),
+            host_ms.negotiate(host_stream)
+        )
     except MultiselectClientError:
-        await stream.write('debug-sigkill'.encode())  # kill host
-        thread.join()
-        stream.close()
-        sock.close()
+        await host_stream.write('debug-sigkill'.encode())  # kill host
         raise MultiselectClientError
-    assert protocol == expected_selected_protocol
+    assert result[0] == expected_selected_protocol
 
 
 @pytest.mark.asyncio
@@ -155,42 +157,6 @@ async def test_multiple_protocol_fails():
                                   protocols_for_listener)
 
 
-class InvalidHandshakeStream:
-    """
-    Valid User: Client, Host
-    Always return an invalid HANDSHAKE version, does not interface StreamI
-    """
-
-    def __init__(self):
-        pass
-
-    @staticmethod
-    async def read():
-        return (MULTISELECT_PROTOCOL_ID + '.1').encode()
-
-    @staticmethod
-    async def write(byte):
-        return len(byte)
-
-
-class UnknownResponseStream:
-    """
-    Valid User: Client
-    Pass handshake and send nonsense to client
-    """
-
-    def __init__(self):
-        self.msgs = [MULTISELECT_PROTOCOL_ID,
-                     'you dont know me']
-
-    async def read(self):
-        return self.msgs.pop(0).encode()
-
-    @staticmethod
-    async def write(byte):
-        return len(byte)
-
-
 @pytest.mark.asyncio
 async def test_host_handshake_fail():
     stream = InvalidHandshakeStream()
@@ -217,26 +183,29 @@ async def test_client_unknown_response():
         await client.select_protocol_or_fail("/echo/1.0", stream)
 
 
-'''
 @pytest.mark.asyncio
 async def test_host_commands_handling():
-    t, host_sock = create_host_process([], False, True)
-    t.start()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', host_sock.getsockname()[1]))
 
-    class StrStream(StreamI):
-        async def write(self, s):
-            await super().write(s.encode())
+    class StrStream:
+        def __init__(self, istream):
+            self.super = istream
+
+        async def write(self, msg):
+            await self.super.write(msg.encode())
 
         async def read(self):
-            return (await super().read()).decode()
+            return (await self.super.read()).decode()
 
-    stream = StrStream(sock)
+    host_stream, client_stream = create_network()
+    host = Multiselect()
+    stream = StrStream(client_stream)
+    loop = asyncio.get_event_loop()
+    task = loop.create_task(host.negotiate(host_stream))
+
     await stream.write(MULTISELECT_PROTOCOL_ID)  # handshake
     assert await stream.read() == MULTISELECT_PROTOCOL_ID
-    time.sleep(1)
     await stream.write("ls")  # send ls (expect nothing)
     await stream.write("debug-sigkill")  # expect alive
-    assert t.is_alive()
-'''
+    assert not task.done()
+    with pytest.raises(TimeoutError):
+        await task
