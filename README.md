@@ -33,7 +33,7 @@ async def client_get_protocol(host_info):
   protocols = [ '/cats', '/dogs' ]
   stream = func_to_create_stream(host_info)
   client = MultiselectClient()
-  return selected_protocol = await client.select_one_of(protocols, stream)
+  return await client.select_one_of(protocols, stream)
 
 async def host_get_protocol(handlers):
   stream = func_to_create_stream()
