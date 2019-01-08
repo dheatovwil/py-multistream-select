@@ -90,20 +90,16 @@ async def perform_simple_test(expected_selected_protocol, protocols_for_client,
         host_ms.add_handler(protocol, None)
     client_ms = MultiselectClient()
 
-    try:
-        if args['select-single']:
-            func = client_ms.select_protocol_or_fail
+    if args['select-single']:
+        func = client_ms.select_protocol_or_fail
 
-        else:
-            func = client_ms.select_one_of
+    else:
+        func = client_ms.select_one_of
 
-        result = await asyncio.gather(
-            func(protocols_for_client, client_stream),
-            host_ms.negotiate(host_stream)
-        )
-    except MultiselectClientError:
-        await host_stream.write('debug-sigkill'.encode())  # kill host
-        raise MultiselectClientError
+    result = await asyncio.gather(
+        func(protocols_for_client, client_stream),
+        host_ms.negotiate(host_stream)
+    )
     assert result[0] == expected_selected_protocol
 
 
@@ -161,7 +157,7 @@ async def test_multiple_protocol_fails():
 async def test_host_handshake_fail():
     stream = InvalidHandshakeStream()
     comm = MultiselectCommunicator(stream)
-    host = Multiselect(debug=True)
+    host = Multiselect()
     with pytest.raises(MultiselectError):
         await host.handshake(comm)
 
@@ -184,7 +180,7 @@ async def test_client_unknown_response():
 
 
 @pytest.mark.asyncio
-async def test_host_commands_handling():
+async def test_host_ls():
 
     class StrStream:
         def __init__(self, istream):
@@ -196,8 +192,14 @@ async def test_host_commands_handling():
         async def read(self):
             return (await self.super.read()).decode()
 
+    protocols = ['/egg/1.0', '/plant/1.0', '/echo/1.0']
+
     host_stream, client_stream = create_network()
     host = Multiselect()
+
+    for protocol in protocols:
+        host.add_handler(protocol, None)
+
     stream = StrStream(client_stream)
     loop = asyncio.get_event_loop()
     task = loop.create_task(host.negotiate(host_stream))
@@ -205,7 +207,15 @@ async def test_host_commands_handling():
     await stream.write(MULTISELECT_PROTOCOL_ID)  # handshake
     assert await stream.read() == MULTISELECT_PROTOCOL_ID
     await stream.write("ls")  # send ls (expect nothing)
-    await stream.write("debug-sigkill")  # expect alive
-    assert not task.done()
+
+    response = []
+
+    try:
+        while True:
+            response.append(await stream.read())
+    except TimeoutError:
+        pass
+
+    assert response == protocols
     with pytest.raises(TimeoutError):
         await task

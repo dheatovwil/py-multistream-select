@@ -12,8 +12,7 @@ class Multiselect(IMultiselectMuxer):
     a specific protocol and handler pair to use for communication
     """
 
-    def __init__(self, debug=False):
-        self.debug = debug
+    def __init__(self):
         self.handlers = {}
 
     def add_handler(self, protocol, handler):
@@ -45,14 +44,8 @@ class Multiselect(IMultiselectMuxer):
 
             # Command is ls or a protocol
             if command == "ls":
-                # TODO: handle ls command
-                pass
-            elif command == "debug-sigkill":
-                # Used in automated testing to stop while loop
-                # when error is raised by Client
-                if self.debug:
-                    return None, None
-                continue
+                for protocol in self.handlers:
+                    await communicator.write(protocol)
             else:
                 protocol = command
                 if protocol in self.handlers:
