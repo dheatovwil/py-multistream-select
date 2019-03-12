@@ -118,8 +118,7 @@ class MultiselectClient(IMultiselectClient):
             return protocol
         if response == PROTOCOL_NOT_FOUND_MSG:
             raise MultiselectClientError("protocol not supported")
-        else:
-            raise MultiselectClientError("unrecognized response: " + response)
+        raise MultiselectClientError("unrecognized response: " + response)
 
 
 class MultiselectClientError(ValueError):
