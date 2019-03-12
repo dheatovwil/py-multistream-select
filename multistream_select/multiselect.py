@@ -44,8 +44,7 @@ class Multiselect(IMultiselectMuxer):
 
             # Command is ls or a protocol
             if command == "ls":
-                for protocol in self.handlers:
-                    await communicator.write(protocol)
+                await communicator.write('\n'.join(self.handlers))
             else:
                 protocol = command
                 if protocol in self.handlers:

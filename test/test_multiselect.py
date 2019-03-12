@@ -208,14 +208,11 @@ async def test_host_ls():
     assert await stream.read() == MULTISELECT_PROTOCOL_ID
     await stream.write("ls")  # send ls (expect nothing)
 
-    response = []
-
     try:
-        while True:
-            response.append(await stream.read())
+        response = await stream.read()
     except TimeoutError:
         pass
 
-    assert response == protocols
+    assert response.split('\n') == protocols
     with pytest.raises(TimeoutError):
         await task
