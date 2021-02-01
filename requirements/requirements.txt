@@ -8,7 +8,7 @@ lazy-object-proxy==1.3.1
 mccabe==0.6.1
 more-itertools==5.0.0
 pathlib2==2.3.3
-py==1.7.0
+py==1.10.0
 pycodestyle==2.4.0
 pyflakes==2.0.0
 pyint==1.1.0
