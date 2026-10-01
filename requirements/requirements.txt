@@ -13,6 +13,6 @@ pycodestyle==2.4.0
 pyflakes==2.0.0
 pyint==1.1.0
 six==1.12.0
-typed-ast==1.1.1
+typed-ast==1.5.5
 wrapt==1.10.11
 yapf==0.25.0
